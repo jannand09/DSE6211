@@ -1,11 +1,25 @@
+---
+title: "Annand Module 02 Lab 01"
+author: "Joseph Annand"
+date: "2024-01-25"
+output: html_document
+---
+## Load Libraries
 
+
+```{r}
 library(reticulate)
 library(keras)
 library(tensorflow)
 
 use_virtualenv("my_tf_workspace", required = TRUE)
+```
 
 
+## Neural Network
+
+
+```{r}
 mtcars <- mtcars
 
 mtcars_x <- mtcars[, c("cyl", "disp", "hp")]
@@ -42,9 +56,27 @@ nn_model_training <- nn_model %>% fit(x = mtcars_x,
 plot(nn_model_training)
 
 get_weights(nn_model)
+```
 
-# Exercise 1
 
+## Exercsises
+
+1.)
+
+```{r}
 prediction <- predict(nn_model, array(c(8, 250, 200), dim(1,3)))
 prediction
+```
 
+
+2.)
+The loss function that is specified in the neural network above is mean squared error.
+
+3.)
+The rank of a tensor is the number of axes that the tensor possesses. The rank of a matrix is 2 because it has two axes.
+
+4.)
+Vector data is a rank 1 tensor because it has one axis.
+
+5.)
+A tensor defined as: array(1, dim=c(500, 256, 256, 3)) has a rank of 4. Its shape is (500, 256, 256, 3). The dimension of the second axis is 256. If the tensor represented a collection of color images, there would be 500 images in the tensor.
