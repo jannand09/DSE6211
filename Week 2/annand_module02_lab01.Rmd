@@ -2,7 +2,9 @@
 title: "Annand Module 02 Lab 01"
 author: "Joseph Annand"
 date: "2024-01-25"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 ## Load Libraries
 
@@ -64,7 +66,7 @@ get_weights(nn_model)
 1.)
 
 ```{r}
-prediction <- predict(nn_model, array(c(8, 250, 200), dim(1,3)))
+prediction <- predict(nn_model, array(c(8, 250, 200), dim = c(1,3)))
 prediction
 ```
 
