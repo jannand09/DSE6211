@@ -1,0 +1,165 @@
+---
+title: "DSE6211 Module 03 Lab 03"
+author: "Joseph Annand"
+date: "2024-02-04"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Code for Data Pre-Processing
+
+
+## Load Libraries
+
+
+```{r}
+library(dplyr)
+library(caret)
+```
+
+
+## Load data
+
+
+```{r}
+# Separate lab 3 data set into test and training set
+data <- read.csv("lab_3_data/lab_3_data.csv")
+training_ind <- createDataPartition(data$lodgepole_pine,
+                                    p = 0.75,
+                                    list = F,
+                                    times = 1)
+
+training_set <- data[training_ind, ]
+test_set <- data[-training_ind, ]
+
+unique(training_set$wilderness_area)
+unique(training_set$soil_type)
+```
+
+
+## Prepare categorical features
+
+
+```{r}
+# Create a table with the 20 most common soil types from the training set
+top_20_soil_types <- training_set %>%
+  group_by(soil_type) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  select(soil_type) %>%
+  top_n(20)
+
+# Convert the value of 'soil_type' feature to "other" for all observations whose soil type is not in the 20 most common
+training_set$soil_type <- ifelse(training_set$soil_type %in% top_20_soil_types$soil_type,
+                                 training_set$soil_type,
+                                 "other")
+
+# Convert wilderness area and soil type features to factor class
+training_set$wilderness_area <- factor(training_set$wilderness_area)
+training_set$soil_type <- factor(training_set$soil_type)
+
+class(training_set$wilderness_area)
+class(training_set$soil_type)
+
+levels(training_set$wilderness_area)
+levels(training_set$soil_type)
+```
+
+
+## One Hot Encoding Training Set
+
+
+```{r}
+# Create one hot encoder for categorical variables
+onehot_encoder <- dummyVars(~ wilderness_area + soil_type,
+                            training_set[, c("wilderness_area", "soil_type")],
+                            levelsOnly = T,
+                            fullRank = T)
+
+# Use one hot encoder to encode categorical variables
+onehot_enc_training <- predict(onehot_encoder,
+                               training_set[, c("wilderness_area", "soil_type")])
+
+# Combine with one hot encoded data with training set
+training_set <- cbind(training_set, onehot_enc_training)
+```
+
+
+## One Hot Encoding Test Set
+
+
+```{r}
+# Repeat previous steps on the test data set
+test_set$soil_type <- ifelse(test_set$soil_type %in% top_20_soil_types$soil_type,
+                             test_set$soil_type,
+                             "other")
+
+test_set$wilderness_area <- factor(test_set$wilderness_area)
+test_set$soil_type <- factor(test_set$soil_type)
+
+onehot_enc_test <- predict(onehot_encoder, test_set[, c("wilderness_area", "soil_type")])
+test_set <- cbind(test_set, onehot_enc_test)
+```
+
+
+## Scaling Numerical features
+
+
+```{r}
+# Scale test and training set numerical features
+test_set[, -c(11:13)] <- scale(test_set[, -c(11:13)],
+                               center = apply(training_set[, -c(11:13)], 2, mean),
+                               scale = apply(training_set[, -c(11:13)], 2, sd))
+training_set[, -c(11:13)] <- scale(training_set[, -c(11:13)])
+```
+
+
+## Create R arrays with pre-processed training and test data
+
+
+```{r}
+# Convert training and test data into tensors for neural network
+training_features <- array(data = unlist(training_set[, -c(11:13)]),
+                           dim = c(nrow(training_set), 33))
+training_labels <- array(data = unlist(training_set[, 13]),
+                         dim = c(nrow(training_set)))
+
+test_features <- array(data = unlist(training_set[, -c(11:13)]),
+                       dim = c(nrow(test_set), 33))
+test_labels <- array(data = unlist(training_set[, 13]),
+                     dim = c(nrow(test_set)))
+```
+
+
+# Exercises
+
+
+## Question 1
+
+
+```{r}
+head(training_features)
+```
+
+
+```{r}
+head(test_features)
+```
+
+
+## Question 2
+
+
+The rank of 'training_features' is 2. The shape is (6537, 33). There are 33 dimension along the second axis.
+
+
+## Question 3
+
+
+One situation where scaling numerical variables is important is a neural network that uses gradient descent in its optimization method. If the ranges of each feature is largely different, then the steps in the gradient descent will not update at the same rate for all features, which will cause issues when the optimizer searches for the minimum. Scaling all features resolves this issue and makes the optimization method faster. A second situation where scaling is important is principal components analysis. The features that vary more simply because they have larger scales will be dominant in the creation of the principal components, resulting in a biased model.

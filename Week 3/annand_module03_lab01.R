@@ -44,3 +44,37 @@ onehot_enc_training <- predict(onehot_encoder,
                                training_set[, c("wilderness_area", "soil_type")])
 
 training_set <- cbind(training_set, onehot_enc_training)
+
+
+test_set$soil_type <- ifelse(test_set$soil_type %in% top_20_soil_types$soil_type,
+                             test_set$soil_type,
+                             "other")
+
+test_set$wilderness_area <- factor(test_set$wilderness_area)
+test_set$soil_type <- factor(test_set$soil_type)
+
+onehot_enc_test <- predict(onehot_encoder, test_set[, c("wilderness_area", "soil_type")])
+test_set <- cbind(test_set, onehot_enc_test)
+
+
+test_set[, -c(11:13)] <- scale(test_set[, -c(11:13)],
+                               center = apply(training_set[, -c(11:13)], 2, mean),
+                               scale = apply(training_set[, -c(11:13)], 2, sd))
+training_set[, -c(11:13)] <- scale(training_set[, -c(11:13)])
+
+
+training_features <- array(data = unlist(training_set[, -c(11:13)]),
+                           dim = c(nrow(training_set), 33))
+training_labels <- array(data = unlist(training_set[, 13]),
+                         dim = c(nrow(training_set)))
+
+test_features <- array(data = unlist(training_set[, -c(11:13)]),
+                       dim = c(nrow(test_set), 33))
+test_labels <- array(data = unlist(training_set[, 13]),
+                     dim = c(nrow(test_set)))
+
+
+head(training_features)
+head(test_features)
+
+dim(training_features)
