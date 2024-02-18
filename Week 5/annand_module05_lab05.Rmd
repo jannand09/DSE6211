@@ -1,19 +1,46 @@
+---
+title: "DSE6211 Module 05 Lab 05"
+author: "Joseph Annand"
+date: "2024-02-17"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Libraries
 
 
+```{r libraries, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 library(dplyr)
 library(caret)
 library(reticulate)
 library(tensorflow)
 library(keras)
 library(MESS)
+library(reticulate)
+library(tensorflow)
+library(keras)
+library(AppliedPredictiveModeling)
+```
 
 
+## Process and 
+
+
+```{r data, error=FALSE, warning=FALSE, message=FALSE}
 data <- read.csv("lab_5_data/lab_5_data.csv")
 training_ind <- createDataPartition(data$lodgepole_pine,
                                     p = 0.75,
                                     list = F,
                                     times = 1)
+```
 
+
+```{r pre-processing, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 training_set <- data[training_ind, ]
 test_set <- data[-training_ind, ]
 
@@ -69,18 +96,16 @@ test_features <- array(data = unlist(training_set[, -c(11:13)]),
                        dim = c(nrow(test_set), 33))
 test_labels <- array(data = unlist(training_set[, 13]),
                      dim = c(nrow(test_set)))
+```
 
 
-library(reticulate)
-library(tensorflow)
-library(keras)
-
+```{r train neural network, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 use_virtualenv("my_tf_workspace")
 
 
 model <- keras_model_sequential(list(
-  layer_dense(units = 20, activation = "relu"),
-  layer_dense(units = 10, activation = "relu"),
+  layer_dense(units = 50, activation = "relu"),
+  layer_dense(units = 25, activation = "relu"),
   layer_dense(units = 1, activation = "sigmoid")))
 
 compile(model,
@@ -90,9 +115,13 @@ compile(model,
 
 history <- fit(model, training_features, training_labels,
                epochs = 40, batch_size = 512, validation_split = 0.33)
+```
 
-plot(history)
 
+## Evaluate classification model
+
+
+```{r predictions}
 predictions <- predict(model, test_features)
 test_set$p_prob <- predictions[, 1]
 head(predictions, 10)
@@ -106,7 +135,13 @@ fpr
 # Percentage of correct predictions for observations of the positive class
 tpr <- sum(over_threshold$lodgepole_pine==1)/sum(test_set$lodgepole_pine==1)
 tpr
+```
 
+
+### ROC Curve
+
+
+```{r roc curve}
 # Data processing for ROC curve
 roc_data <- data.frame(threshold=seq(1,0,-0.01), fpr=0, tpr=0)
 for (i in roc_data$threshold) {
@@ -129,14 +164,22 @@ ggplot() +
   geom_point(data = roc_data[seq(1, 101, 10), ], aes(x = fpr, y =tpr)) +
   geom_text(data = roc_data[seq(1, 101, 10), ],
             aes(x = fpr, y = tpr, label = threshold, hjust = 1.2, vjust = -0.2))
+```
 
-# AUC - area under ROC curve 
 
+### AUC
+
+
+```{r auc}
 auc <- auc(x = roc_data$fpr, y = roc_data$tpr, type = "spline")
 auc
+```
 
-# Data processing for Calibration curve
 
+### Calibration Curve
+
+
+```{r cal curve}
 calibration_data <- data.frame(bin_midpoint=seq(0.05, 0.95, 0.1),
                                observed_event_percentage=0)
 for (i in seq(0.05,0.95,0.1)) {
@@ -150,29 +193,41 @@ for (i in seq(0.05,0.95,0.1)) {
 # Calibration curve
 
 ggplot(data = calibration_data, aes(x = bin_midpoint, y = observed_event_percentage)) +
-  geom_ine(size = 1) +
+  geom_line(size = 1) +
   geom_abline(intercept = 0, slope = 1, lty = 2) +
   geom_point(size = 2) +
   geom_text(aes(label = bin_midpoint), hjust = 0.75, vjust = -0.5)
+```
 
-# Exercise 1
 
-fpr_1 <- roc_data[roc_data$threshold==0.3, "fpr"]
-fpr_1
+## Exercises
 
-tpr_1 <- roc_data[roc_data$threshold==0.3, "tpr"]
-tpr_1
 
-# Exercise 2
+### Exercise 1
 
-# Under confident because the value lies above the diagonal dashed line
 
-# Exercise 3
+```{r ex 1}
+x <- roc_data$threshold[71]
+roc_data[roc_data$threshold==x, ]
+```
 
-library(AppliedPredictiveModeling)
+
+### Exercise 2
+
+
+Under confident because the value lies above the diagonal dashed line.
+
+
+### Exercise 3
+
+
+```{r ex 3 data}
 data("logisticCreditPredictions")
 lcp <- logisticCreditPredictions
+```
 
+
+```{r ex 3 roc}
 # ROC curve
 
 roc_data <- data.frame(threshold=seq(1,0,-0.01), fpr=0, tpr=0)
@@ -191,10 +246,10 @@ ggplot() +
   geom_point(data = roc_data[seq(1, 101, 10), ], aes(x = fpr, y = tpr)) +
   geom_text(data = roc_data[seq(1, 101, 10), ],
             aes(x = fpr, y = tpr, label = threshold, hjust = 1.2, vjust = -0.2))
+```
 
 
-# Calibration curve
-
+```{r ex 3 cal}
 calibration_data <- data.frame(bin_midpoint=seq(0.05,0.95,0.1),
                                observed_event_percentage=0)
 for (i in seq(0.05,0.95,0.1)) {
@@ -208,4 +263,5 @@ ggplot(data = calibration_data, aes(x = bin_midpoint, y = observed_event_percent
   geom_abline(intercept = 0, slope = 1, lty = 2) +
   geom_point(size = 2) +
   geom_text(aes(label = bin_midpoint), hjust = 0.75, vjust = -0.5)
+```
 
