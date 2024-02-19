@@ -1,9 +1,33 @@
+---
+title: "DSE6211 Preliminary Report"
+author: "Joseph Annand"
+date: "2024-02-19"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load libraries
 
 
+```{r libraries, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 library(dplyr)
 library(lubridate)
 library(caret)
+```
 
+
+## Data Pre-processing
+
+
+### Create training and test sets
+
+
+```{r data sets, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 project_data <- read.csv("project_data/project_data.csv")
 
 rownames(project_data) <- project_data$Booking_ID
@@ -20,11 +44,13 @@ test_set <- project_data[-training_ind, ]
 
 training_set$booking_status <- ifelse(training_set$booking_status=="canceled",1,0)
 test_set$booking_status <- ifelse(test_set$booking_status=="canceled",1,0)
+```
 
 
-###### Training Set Categorical Features
+### Training Set Categorical Features
 
 
+```{r training categorical, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 training_set$arrival_date <- parse_date_time(training_set$arrival_date, "ymd")
 training_set$booking_date <- int_start(interval(training_set$arrival_date - ddays(training_set$lead_time), 
                                         training_set$arrival_date))
@@ -84,9 +110,13 @@ onehot_enc_training <- predict(onehot_encoder, training_set[, c("no_of_adults","
                                                                 "arrival_day")])
 
 training_set <- cbind(training_set, onehot_enc_training)
+```
 
-####### Test Set Categorical Variables
 
+### Test set Categorical Features
+
+
+```{r test categorical, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 test_set$arrival_date <- parse_date_time(test_set$arrival_date, "ymd")
 test_set$booking_date <- int_start(interval(test_set$arrival_date - ddays(test_set$lead_time), 
                                                 test_set$arrival_date))
@@ -131,18 +161,24 @@ onehot_enc_test <- predict(onehot_encoder, test_set[, c("no_of_adults","no_of_ch
                                                                 "arrival_day")])
 
 test_set <- cbind(test_set, onehot_enc_test)
+```
 
 
-##### Numerical Features
+### Numerical features
 
+
+```{r numerical, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 test_set[, c("lead_time", "avg_price_per_room")] <- scale(test_set[, c("lead_time", "avg_price_per_room")],
                                                           center = apply(training_set[, c("lead_time", "avg_price_per_room")], 2, mean),
                                                           scale = apply(training_set[, c("lead_time", "avg_price_per_room")], 2, sd))
 training_set[, c("lead_time", "avg_price_per_room")] <- scale(training_set[, c("lead_time", "avg_price_per_room")])
+```
 
 
-##### Create tensors
+### Create tensors
 
+
+```{r tensors, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 train_col <- ncol(training_set)
 test_col <- ncol(test_set)
 
@@ -155,17 +191,28 @@ test_features <- array(data = unlist(test_set[, c(8,14,20:test_col)]),
                        dim = c(nrow(test_set), length(c(8,14,20:test_col))))
 test_labels <- array(data = unlist(test_set[, "booking_status"]),
                      dim = nrow(test_set))
+```
 
 
-##### Dense feed-forward Neural Network
+## Feed-forward Dense Neural Network
 
+
+### Load Tensorflow workspace
+
+
+```{r workspace, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 library(reticulate)
 library(tensorflow)
 library(keras)
 
 use_virtualenv("my_tf_workspace")
+```
 
-# First model
+
+### First model
+
+
+```{r first model, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 model <- keras_model_sequential(list(
   layer_dense(units = 75, activation = "relu"),
   layer_dense(units = 37, activation = "relu"),
@@ -179,20 +226,27 @@ compile(model,
 
 history <- fit(model, training_features, training_labels,
                epochs = 100, batch_size = 512, validation_split = 0.33)
-plot(history)
-
 
 history2 <- fit(model, training_features, training_labels,
                epochs = 100, batch_size = 1000, validation_split = 0.33)
-plot(history2)
-
 
 history6 <- fit(model, training_features, training_labels,
                 epochs = 200, batch_size = 512, validation_split = 0.33)
+
+```
+
+
+```{r first plots}
+plot(history)
+plot(history2)
 plot(history6)
+```
 
-# Second model
 
+### Second model
+
+
+```{r second model, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 model_2 <- keras_model_sequential(list(
   layer_dense(units = 75, activation = "relu"),
   layer_dense(units = 75, activation = "relu"),
@@ -208,16 +262,22 @@ compile(model_2,
 history3 <- fit(model_2, training_features, training_labels,
                epochs = 100, batch_size = 1000, validation_split = 0.33)
 
-plot(history3)
-
 history4 <- fit(model_2, training_features, training_labels,
                 epochs = 100, batch_size = 512, validation_split = 0.33)
 
+```
+
+
+```{r second plots}
+plot(history3)
 plot(history4)
+```
 
 
-# Third model
+### Thrid model
 
+
+```{r third model}
 model_3 <- keras_model_sequential(list(
   layer_dense(units = 75, activation = "relu"),
   layer_dense(units = 75, activation = "relu"),
@@ -233,5 +293,10 @@ compile(model_3,
 
 history5 <- fit(model_3, training_features, training_labels,
                 epochs = 100, batch_size = 1000, validation_split = 0.33)
+```
 
+
+```{r third plots, results='hide', error=FALSE, warning=FALSE, message=FALSE}
 plot(history5)
+```
+
