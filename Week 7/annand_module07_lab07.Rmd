@@ -1,0 +1,28 @@
+---
+title: "DSE6211 Module 07 Lab 07"
+author: "Joseph Annand"
+date: "2024-02-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exercises
+
+
+### Exercise 1
+
+
+The main difference between unsupervised learning and supervised learning is that unsupervised learning uses data where no labels are associated with the observations. Supervised labels uses labeled data and attempts to infer a relationship between the data features and the labels. In unsupervised learning, since there are no labels, a relationship between features and labels is not a concern; instead, the relationship between observations or between features is the focus.
+
+
+### Exercise 2
+
+
+Centering is always required for PCA as it ensures the data is centered around the origin, the first PC is not dominated by the means of the variables and captures the true variance of the data, and the first PC passes through the center fo the data cloud. Scaling is almost always required to ensure that all numerical features have similar weighting in the analysis.
+
+
+
+
