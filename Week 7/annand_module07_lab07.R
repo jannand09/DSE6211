@@ -84,8 +84,12 @@ training_rotated <- as.matrix(training_features[, 1:10]) %*% pca_results$rotatio
 training_features <- cbind(training_features, training_rotated[,1:6])
 
 test_rotated <- as.matrix(test_features[,1:10]) %*% pca_results$rotation
-test_features <- as.matrix(test_features, test_rotated[,1:6])
+test_features <- cbind(test_features, test_rotated[,1:6])
 
+dim(training_features)
+dim(test_features)
+
+x <- test_features[, -1*c(1:13)]
 
 ############################## Neural Network ##################################
 
