@@ -1,0 +1,55 @@
+---
+title: "DSE 6211 Module 08 Lab 08"
+author: "Joseph Annand"
+date: "2024-03-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Exercises
+
+
+### Exercise 1
+
+
+It is good practice to center and scale the data before trying k-means clustering because features with higher magnitudes may dominate the distance calculations and have greater influence on the clusters. Centering and scaling ensures all features have equal influence on the determination of clusters by the model.
+
+
+### Exercise 2
+
+
+```{r exercise 2}
+print(km_clusters$size)
+print(km_clusters$centers)
+```
+
+
+### Exercise 3
+
+
+```{r exercise 3}
+for (x in c(4,6,10)) {
+  f_means <-  aggregate(training_features[, x],
+                     by=list(training_features$cluster_number),
+                     FUN=mean)
+  print(paste("Means for feature", x))
+  print(f_means)
+}
+```
+
+
+### Exercise 4
+
+
+```{r exercise 4}
+library(clue)
+
+predictions <- cl_predict(km_clusters, newdata = test_features[, c(4,6,10)])
+test_features <- cbind(test_features, predictions)
+head(test_features)
+```
+

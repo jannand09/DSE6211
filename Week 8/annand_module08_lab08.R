@@ -75,8 +75,29 @@ set.seed(123)
 nc <- NbClust(training_features[sample(nrow(training_features), 1000), c(4, 6, 10)],
               min.nc = 2, max.nc = 10, method = "kmeans")
 
-km_clusters <- kmeans(training_features[, c(4, 6, 10)], centers = 4)
+km_clusters <- kmeans(training_features[, c(4, 6, 10)], centers = 3)
 
 cluster_number <- data.frame(cluster_number = km_clusters$cluster)
 training_features <- cbind(training_features, cluster_number)
 head(training_features)
+
+
+############################### Exercises ######################################
+
+
+print(km_clusters$size)
+print(km_clusters$centers)
+
+for (x in c(4,6,10)) {
+  f_means <-  aggregate(training_features[, x],
+                     by=list(training_features$cluster_number),
+                     FUN=mean)
+  print(paste("Means for feature", x))
+  print(f_means)
+}
+
+library(clue)
+
+predictions <- cl_predict(km_clusters, newdata = test_features[, c(4,6,10)])
+test_features <- cbind(test_features, predictions)
+head(test_features)
