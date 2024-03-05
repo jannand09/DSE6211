@@ -24,6 +24,66 @@ test_set$booking_status <- ifelse(test_set$booking_status=="canceled",1,0)
 
 ###### Training Set Categorical Features
 
+top_8_previous_not_cancelled <- training_set %>%
+  group_by(no_of_previous_bookings_not_canceled) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  select(no_of_previous_bookings_not_canceled) %>%
+  slice(1:8)
+
+top_2_number_of_children <- training_set %>%
+  group_by(no_of_children) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  slice(1:2)
+
+top_3_previous_cancellations <- training_set %>%
+  group_by(no_of_previous_cancellations) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  slice(1:3)
+
+top_8_week_nights <- training_set %>%
+  group_by(no_of_week_nights) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  slice(1:8)
+
+top_6_weekend_nights <- training_set %>%
+  group_by(no_of_weekend_nights) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  slice(1:6)
+
+
+training_set$no_of_previous_bookings_not_canceled <- ifelse(
+  training_set$no_of_previous_bookings_not_canceled %in% top_8_previous_not_cancelled$no_of_previous_bookings_not_canceled,
+  training_set$no_of_previous_bookings_not_canceled, "8+"
+)
+
+training_set$no_of_children <- ifelse(
+  training_set$no_of_children %in% top_2_number_of_children$no_of_children,
+  training_set$no_of_children, "3+"
+)
+
+training_set$no_of_previous_cancellations <- ifelse(
+  training_set$no_of_previous_cancellations %in% top_3_previous_cancellations$no_of_previous_cancellations,
+  training_set$no_of_previous_cancellations, "3+"
+)
+
+training_set$no_of_week_nights <- ifelse(
+  training_set$no_of_week_nights %in% top_8_week_nights$no_of_week_nights,
+  training_set$no_of_week_nights, "8+"
+)
+
+training_set$no_of_weekend_nights <- ifelse(
+  training_set$no_of_weekend_nights %in% top_6_weekend_nights$no_of_weekend_nights,
+  training_set$no_of_weekend_nights, "6+"
+)
+
+training_set$type_of_meal_plan <- ifelse(training_set$type_of_meal_plan %in% c("meal_plan_1", "meal_plan_2"),
+                                         training_set$type_of_meal_plan,
+                                         "other")
 
 training_set$arrival_date <- parse_date_time(training_set$arrival_date, "ymd")
 training_set$booking_date <- int_start(interval(training_set$arrival_date - ddays(training_set$lead_time), 
@@ -86,6 +146,35 @@ onehot_enc_training <- predict(onehot_encoder, training_set[, c("no_of_adults","
 training_set <- cbind(training_set, onehot_enc_training)
 
 ####### Test Set Categorical Variables
+
+test_set$no_of_previous_bookings_not_canceled <- ifelse(
+  test_set$no_of_previous_bookings_not_canceled %in% top_8_previous_not_cancelled$no_of_previous_bookings_not_canceled,
+  test_set$no_of_previous_bookings_not_canceled, "8+"
+)
+
+test_set$no_of_children <- ifelse(
+  test_set$no_of_children %in% top_2_number_of_children$no_of_children,
+  test_set$no_of_children, "3+"
+)
+
+test_set$no_of_previous_cancellations <- ifelse(
+  test_set$no_of_previous_cancellations %in% top_3_previous_cancellations$no_of_previous_cancellations,
+  test_set$no_of_previous_cancellations, "3+"
+)
+
+test_set$no_of_week_nights <- ifelse(
+  test_set$no_of_week_nights %in% top_8_week_nights$no_of_week_nights,
+  test_set$no_of_week_nights, "8+"
+)
+
+test_set$no_of_weekend_nights <- ifelse(
+  test_set$no_of_weekend_nights %in% top_6_weekend_nights$no_of_weekend_nights,
+  test_set$no_of_weekend_nights, "6+"
+)
+
+test_set$type_of_meal_plan <- ifelse(test_set$type_of_meal_plan %in% c("meal_plan_1", "meal_plan_2"),
+                                         test_set$type_of_meal_plan,
+                                         "other")
 
 test_set$arrival_date <- parse_date_time(test_set$arrival_date, "ymd")
 test_set$booking_date <- int_start(interval(test_set$arrival_date - ddays(test_set$lead_time), 
