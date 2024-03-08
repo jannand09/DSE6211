@@ -254,7 +254,27 @@ library(keras)
 
 use_virtualenv("my_tf_workspace")
 
-# First model
+# Overfit model
+
+# Add batch normalization model
+model <- keras_model_sequential(list(
+  layer_dense(units = 100, activation = "relu"),
+  layer_dense(units = 100, activation = "relu"),
+  layer_dense(units = 50, activation = "relu"),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history <- fit(model, training_features, training_labels,
+               epochs = 200, batch_size = 512, validation_split = 0.33)
+plot(history)
+
+# Model with smaller capacity
+
 model <- keras_model_sequential(list(
   layer_dense(units = 75, activation = "relu"),
   layer_dense(units = 37, activation = "relu"),
@@ -267,60 +287,25 @@ compile(model,
         metrics = "accuracy")
 
 history <- fit(model, training_features, training_labels,
-               epochs = 100, batch_size = 512, validation_split = 0.33)
+               epochs = 200, batch_size = 512, validation_split = 0.33)
 plot(history)
 
-
-history2 <- fit(model, training_features, training_labels,
-               epochs = 100, batch_size = 1000, validation_split = 0.33)
-plot(history2)
-
-
-history6 <- fit(model, training_features, training_labels,
-                epochs = 200, batch_size = 512, validation_split = 0.33)
-plot(history6)
-
-# Second model
-
-model_2 <- keras_model_sequential(list(
+# Add early stop and batch normalization model
+model <- keras_model_sequential(list(
   layer_dense(units = 75, activation = "relu"),
-  layer_dense(units = 75, activation = "relu"),
+  layer_batch_normalization(),
   layer_dense(units = 37, activation = "relu"),
+  layer_batch_normalization(),
   layer_dense(units = 1, activation = "sigmoid")
 ))
 
-compile(model_2,
+compile(model,
         optimizer = "rmsprop",
         loss = "binary_crossentropy",
         metrics = "accuracy")
 
-history3 <- fit(model_2, training_features, training_labels,
-               epochs = 100, batch_size = 1000, validation_split = 0.33)
+history <- fit(model, training_features, training_labels,
+               epochs = 25, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history)
 
-plot(history3)
-
-history4 <- fit(model_2, training_features, training_labels,
-                epochs = 100, batch_size = 512, validation_split = 0.33)
-
-plot(history4)
-
-
-# Third model
-
-model_3 <- keras_model_sequential(list(
-  layer_dense(units = 75, activation = "relu"),
-  layer_dense(units = 75, activation = "relu"),
-  layer_dense(units = 75, activation = "relu"),
-  layer_dense(units = 37, activation = "relu"),
-  layer_dense(units = 1, activation = "sigmoid")
-))
-
-compile(model_3,
-        optimizer = "rmsprop",
-        loss = "binary_crossentropy",
-        metrics = "accuracy")
-
-history5 <- fit(model_3, training_features, training_labels,
-                epochs = 100, batch_size = 1000, validation_split = 0.33)
-
-plot(history5)
