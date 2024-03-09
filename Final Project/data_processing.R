@@ -309,3 +309,140 @@ history <- fit(model, training_features, training_labels,
                callbacks = list(callback_early_stopping(patience = 2)))
 plot(history)
 
+# Add L2 regularization
+
+model <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dense(units = 37, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history <- fit(model, training_features, training_labels,
+               epochs = 25, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history)
+
+# Add Dropout
+
+model <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
+  layer_dense(units = 37, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history <- fit(model, training_features, training_labels,
+               epochs = 25, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history)
+
+# Remove regularization
+
+model <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu"),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
+  layer_dense(units = 37, activation = "relu"),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history <- fit(model, training_features, training_labels,
+               epochs = 25, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history)
+
+# Add regularization and increase nodes in hidden layers
+
+model <- keras_model_sequential(list(
+  layer_dense(units = 100, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
+  layer_dense(units = 50, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history <- fit(model, training_features, training_labels,
+               epochs = 25, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history)
+
+# 50 epochs YIELDS LOWEST TRAINING ERROR
+
+model <- keras_model_sequential(list(
+  layer_dense(units = 100, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
+  layer_dense(units = 50, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history <- fit(model, training_features, training_labels,
+               epochs = 50, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history)
+
+# Remove dropout
+
+model <- keras_model_sequential(list(
+  layer_dense(units = 100, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dense(units = 50, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history <- fit(model, training_features, training_labels,
+               epochs = 50, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history)
