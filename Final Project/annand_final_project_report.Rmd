@@ -1,9 +1,29 @@
+---
+title: "DSE6211 Final Project"
+author: "Joseph Annand"
+date: "2024-03-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 
+## Libraries
+
+
+```{r libraries}
 library(dplyr)
 library(lubridate)
 library(caret)
+```
 
+
+## Data Processing
+
+
+```{r data processing}
 project_data <- read.csv("project_data/project_data.csv")
 
 rownames(project_data) <- project_data$Booking_ID
@@ -258,25 +278,29 @@ test_features <- array(data = unlist(test_set[, c(8,14,20:test_col)]),
                        dim = c(nrow(test_set), length(c(8,14,20:test_col))))
 test_labels <- array(data = unlist(test_set[, "booking_status"]),
                      dim = nrow(test_set))
+```
 
-# colnames(training_set)[!(colnames(training_set) %in% colnames(test_set))]
 
-# project_data %>%
-  # group_by(no_of_special_requests) %>%
-  # summarise(count = n())
+## Feed-forward Dense Neural Network
 
-##### Dense feed-forward Neural Network
 
+### Tensorflow Workspace
+
+
+```{r tensorflow work space}
 library(reticulate)
 library(tensorflow)
 library(keras)
 
 use_virtualenv("my_tf_workspace")
+```
 
-# Overfit model
 
+### Overfit Model
+
+
+```{r overfit model}
 model <- keras_model_sequential(list(
-  layer_dense(units = 100, activation = "relu"),
   layer_dense(units = 100, activation = "relu"),
   layer_dense(units = 50, activation = "relu"),
   layer_dense(units = 1, activation = "sigmoid")
@@ -290,137 +314,13 @@ compile(model,
 history <- fit(model, training_features, training_labels,
                epochs = 200, batch_size = 512, validation_split = 0.33)
 plot(history)
+```
 
-# Model with smaller capacity
 
-model <- keras_model_sequential(list(
-  layer_dense(units = 75, activation = "relu"),
-  layer_dense(units = 37, activation = "relu"),
-  layer_dense(units = 1, activation = "sigmoid")
-))
+### First generalized model
 
-compile(model,
-        optimizer = "rmsprop",
-        loss = "binary_crossentropy",
-        metrics = "accuracy")
 
-history <- fit(model, training_features, training_labels,
-               epochs = 200, batch_size = 512, validation_split = 0.33)
-plot(history)
-
-# Add early stop and batch normalization model
-model <- keras_model_sequential(list(
-  layer_dense(units = 75, activation = "relu"),
-  layer_batch_normalization(),
-  layer_dense(units = 37, activation = "relu"),
-  layer_batch_normalization(),
-  layer_dense(units = 1, activation = "sigmoid")
-))
-
-compile(model,
-        optimizer = "rmsprop",
-        loss = "binary_crossentropy",
-        metrics = "accuracy")
-
-history <- fit(model, training_features, training_labels,
-               epochs = 25, batch_size = 512, validation_split = 0.33,
-               callbacks = list(callback_early_stopping(patience = 2)))
-plot(history)
-
-# Add L2 regularization
-
-model <- keras_model_sequential(list(
-  layer_dense(units = 75, activation = "relu",
-              kernel_regularizer = regularizer_l2(0.002)),
-  layer_batch_normalization(),
-  layer_dense(units = 37, activation = "relu",
-              kernel_regularizer = regularizer_l2(0.002)),
-  layer_batch_normalization(),
-  layer_dense(units = 1, activation = "sigmoid")
-))
-
-compile(model,
-        optimizer = "rmsprop",
-        loss = "binary_crossentropy",
-        metrics = "accuracy")
-
-history <- fit(model, training_features, training_labels,
-               epochs = 25, batch_size = 512, validation_split = 0.33,
-               callbacks = list(callback_early_stopping(patience = 2)))
-plot(history)
-
-# Add Dropout
-
-model <- keras_model_sequential(list(
-  layer_dense(units = 75, activation = "relu",
-              kernel_regularizer = regularizer_l2(0.002)),
-  layer_batch_normalization(),
-  layer_dropout(rate=0.5),
-  layer_dense(units = 37, activation = "relu",
-              kernel_regularizer = regularizer_l2(0.002)),
-  layer_batch_normalization(),
-  layer_dropout(rate=0.5),
-  layer_dense(units = 1, activation = "sigmoid")
-))
-
-compile(model,
-        optimizer = "rmsprop",
-        loss = "binary_crossentropy",
-        metrics = "accuracy")
-
-history <- fit(model, training_features, training_labels,
-               epochs = 25, batch_size = 512, validation_split = 0.33,
-               callbacks = list(callback_early_stopping(patience = 2)))
-plot(history)
-
-# Remove regularization
-
-model <- keras_model_sequential(list(
-  layer_dense(units = 75, activation = "relu"),
-  layer_batch_normalization(),
-  layer_dropout(rate=0.5),
-  layer_dense(units = 37, activation = "relu"),
-  layer_batch_normalization(),
-  layer_dropout(rate=0.5),
-  layer_dense(units = 1, activation = "sigmoid")
-))
-
-compile(model,
-        optimizer = "rmsprop",
-        loss = "binary_crossentropy",
-        metrics = "accuracy")
-
-history <- fit(model, training_features, training_labels,
-               epochs = 25, batch_size = 512, validation_split = 0.33,
-               callbacks = list(callback_early_stopping(patience = 2)))
-plot(history)
-
-# Add regularization and increase nodes in hidden layers
-
-model <- keras_model_sequential(list(
-  layer_dense(units = 100, activation = "relu",
-              kernel_regularizer = regularizer_l2(0.002)),
-  layer_batch_normalization(),
-  layer_dropout(rate=0.5),
-  layer_dense(units = 50, activation = "relu",
-              kernel_regularizer = regularizer_l2(0.002)),
-  layer_batch_normalization(),
-  layer_dropout(rate=0.5),
-  layer_dense(units = 1, activation = "sigmoid")
-))
-
-compile(model,
-        optimizer = "rmsprop",
-        loss = "binary_crossentropy",
-        metrics = "accuracy")
-
-history <- fit(model, training_features, training_labels,
-               epochs = 25, batch_size = 512, validation_split = 0.33,
-               callbacks = list(callback_early_stopping(patience = 2)))
-plot(history)
-
-# 50 epochs YIELDS LOWEST VALIDATION LOSS
-
+```{r first model}
 model <- keras_model_sequential(list(
   layer_dense(units = 100, activation = "relu",
               kernel_regularizer = regularizer_l2(0.002)),
@@ -442,63 +342,20 @@ history <- fit(model, training_features, training_labels,
                epochs = 50, batch_size = 512, validation_split = 0.33,
                callbacks = list(callback_early_stopping(patience = 2)))
 plot(history)
+```
 
-# Remove dropout
 
-model <- keras_model_sequential(list(
-  layer_dense(units = 100, activation = "relu",
-              kernel_regularizer = regularizer_l2(0.002)),
-  layer_batch_normalization(),
-  layer_dense(units = 50, activation = "relu",
-              kernel_regularizer = regularizer_l2(0.002)),
-  layer_batch_normalization(),
-  layer_dense(units = 1, activation = "sigmoid")
-))
+### Evaluate generalized model
 
-compile(model,
-        optimizer = "rmsprop",
-        loss = "binary_crossentropy",
-        metrics = "accuracy")
 
-history <- fit(model, training_features, training_labels,
-               epochs = 50, batch_size = 512, validation_split = 0.33,
-               callbacks = list(callback_early_stopping(patience = 2)))
-plot(history)
-
-########################### Evaluate model #####################################
-
+```{r predictions}
 predictions <- predict(model, test_features)
 test_set$p_prob <- predictions[, 1]
+```
 
-# Use 0.5 threshold
-over_threshold <- test_set[test_set$p_prob >= 0.5, ] # observations that will cancel
+#### ROC curve
 
-fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
-fpr
-
-tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
-tpr
-
-# Use 0.75 threshold
-over_threshold <- test_set[test_set$p_prob >= 0.75, ] # observations that will cancel
-
-fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
-fpr
-
-tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
-tpr
-
-# Use a 0.33 threshold
-over_threshold <- test_set[test_set$p_prob >= 0.33, ] # observations that will cancel
-
-fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
-fpr
-
-tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
-tpr
-
-# ROC Curve
-
+```{r roc curve}
 roc_data <- data.frame(threshold=seq(1,0,-0.01), fpr=0, tpr=0)
 for (i in roc_data$threshold) {
   
@@ -519,16 +376,21 @@ ggplot() +
   geom_point(data = roc_data[seq(1, 101, 10), ], aes(x = fpr, y =tpr)) +
   geom_text(data = roc_data[seq(1, 101, 10), ],
             aes(x = fpr, y = tpr, label = threshold, hjust = 1.2, vjust = -0.2))
+```
 
-# AUC
 
-library(MESS)
+#### AUC
 
+```{r auc}
 auc <- auc(x = roc_data$fpr, y = roc_data$tpr, type = "spline")
 auc
+```
 
-# Calibration Curve
 
+#### Calibration Curve
+
+
+```{r cal curve}
 calibration_data <- data.frame(bin_midpoint=seq(0.05, 0.95, 0.1),
                                observed_event_percentage=0)
 for (i in seq(0.05,0.95,0.1)) {
@@ -544,3 +406,5 @@ ggplot(data = calibration_data, aes(x = bin_midpoint, y = observed_event_percent
   geom_abline(intercept = 0, slope = 1, lty = 2) +
   geom_point(size = 2) +
   geom_text(aes(label = bin_midpoint), hjust = 0.75, vjust = -0.5)
+```
+
