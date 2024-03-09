@@ -55,6 +55,12 @@ top_6_weekend_nights <- training_set %>%
   arrange(desc(count)) %>%
   slice(1:6)
 
+top_4_special_requests <- training_set %>%
+  group_by(no_of_special_requests) %>%
+  summarise(count =  n()) %>%
+  arrange(desc(count)) %>%
+  slice(1:4)
+
 
 training_set$no_of_previous_bookings_not_canceled <- ifelse(
   training_set$no_of_previous_bookings_not_canceled %in% top_8_previous_not_cancelled$no_of_previous_bookings_not_canceled,
@@ -84,6 +90,10 @@ training_set$no_of_weekend_nights <- ifelse(
 training_set$type_of_meal_plan <- ifelse(training_set$type_of_meal_plan %in% c("meal_plan_1", "meal_plan_2"),
                                          training_set$type_of_meal_plan,
                                          "other")
+
+training_set$no_of_special_requests <- ifelse(training_set$no_of_special_requests %in% top_4_special_requests$no_of_special_requests,
+                                         training_set$no_of_special_requests,
+                                         "4+")
 
 training_set$arrival_date <- parse_date_time(training_set$arrival_date, "ymd")
 training_set$booking_date <- int_start(interval(training_set$arrival_date - ddays(training_set$lead_time), 
@@ -176,6 +186,10 @@ test_set$type_of_meal_plan <- ifelse(test_set$type_of_meal_plan %in% c("meal_pla
                                          test_set$type_of_meal_plan,
                                          "other")
 
+test_set$no_of_special_requests <- ifelse(test_set$no_of_special_requests %in% top_4_special_requests$no_of_special_requests,
+                                              test_set$no_of_special_requests,
+                                              "4+")
+
 test_set$arrival_date <- parse_date_time(test_set$arrival_date, "ymd")
 test_set$booking_date <- int_start(interval(test_set$arrival_date - ddays(test_set$lead_time), 
                                                 test_set$arrival_date))
@@ -245,6 +259,11 @@ test_features <- array(data = unlist(test_set[, c(8,14,20:test_col)]),
 test_labels <- array(data = unlist(test_set[, "booking_status"]),
                      dim = nrow(test_set))
 
+# colnames(training_set)[!(colnames(training_set) %in% colnames(test_set))]
+
+# project_data %>%
+  # group_by(no_of_special_requests) %>%
+  # summarise(count = n())
 
 ##### Dense feed-forward Neural Network
 
@@ -401,7 +420,7 @@ history <- fit(model, training_features, training_labels,
                callbacks = list(callback_early_stopping(patience = 2)))
 plot(history)
 
-# 50 epochs YIELDS LOWEST TRAINING ERROR
+# 50 epochs YIELDS LOWEST VALIDATION LOSS
 
 model <- keras_model_sequential(list(
   layer_dense(units = 100, activation = "relu",
@@ -446,3 +465,83 @@ history <- fit(model, training_features, training_labels,
                epochs = 50, batch_size = 512, validation_split = 0.33,
                callbacks = list(callback_early_stopping(patience = 2)))
 plot(history)
+
+########################### Evaluate model #####################################
+
+predictions <- predict(model, test_features)
+test_set$p_prob <- predictions[, 1]
+
+# Use 0.5 threshold
+over_threshold <- test_set[test_set$p_prob >= 0.5, ] # observations that will cancel
+
+fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
+fpr
+
+tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
+tpr
+
+# Use 0.75 threshold
+over_threshold <- test_set[test_set$p_prob >= 0.75, ] # observations that will cancel
+
+fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
+fpr
+
+tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
+tpr
+
+# Use a 0.33 threshold
+over_threshold <- test_set[test_set$p_prob >= 0.33, ] # observations that will cancel
+
+fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
+fpr
+
+tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
+tpr
+
+# ROC Curve
+
+roc_data <- data.frame(threshold=seq(1,0,-0.01), fpr=0, tpr=0)
+for (i in roc_data$threshold) {
+  
+  over_threshold <- test_set[test_set$p_prob >= i, ]
+  
+  fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
+  roc_data[roc_data$threshold==i, "fpr"] <-  fpr
+  
+  tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
+  roc_data[roc_data$threshold==i, "tpr"] <- tpr
+  
+}
+
+ggplot() +
+  geom_line(data = roc_data, aes(x=fpr, y=tpr, color = threshold), size = 2) +
+  scale_color_gradientn(colors = rainbow(3)) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  geom_point(data = roc_data[seq(1, 101, 10), ], aes(x = fpr, y =tpr)) +
+  geom_text(data = roc_data[seq(1, 101, 10), ],
+            aes(x = fpr, y = tpr, label = threshold, hjust = 1.2, vjust = -0.2))
+
+# AUC
+
+library(MESS)
+
+auc <- auc(x = roc_data$fpr, y = roc_data$tpr, type = "spline")
+auc
+
+# Calibration Curve
+
+calibration_data <- data.frame(bin_midpoint=seq(0.05, 0.95, 0.1),
+                               observed_event_percentage=0)
+for (i in seq(0.05,0.95,0.1)) {
+  
+  in_interval <- test_set[test_set$p_prob >= (i-0.05) & test_set$p_prob <= (i+0.05), ]
+  oep <- nrow(in_interval[in_interval$booking_status==1, ])/nrow(in_interval)
+  calibration_data[calibration_data$bin_midpoint==i, "observed_event_percentage"] <- oep
+  
+}
+
+ggplot(data = calibration_data, aes(x = bin_midpoint, y = observed_event_percentage)) +
+  geom_line(size = 1) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  geom_point(size = 2) +
+  geom_text(aes(label = bin_midpoint), hjust = 0.75, vjust = -0.5)
