@@ -9,6 +9,12 @@ project_data <- read.csv("project_data/project_data.csv")
 rownames(project_data) <- project_data$Booking_ID
 project_data <- project_data[, -1]
 
+project_data %>%
+  group_by(booking_status) %>%
+  summarise(count = n())
+
+11878 / (24360+11878)
+
 training_ind <- createDataPartition(project_data$booking_status,
                                     p = 0.75,
                                     list = F,
@@ -534,6 +540,102 @@ calibration_data <- data.frame(bin_midpoint=seq(0.05, 0.95, 0.1),
 for (i in seq(0.05,0.95,0.1)) {
   
   in_interval <- test_set[test_set$p_prob >= (i-0.05) & test_set$p_prob <= (i+0.05), ]
+  oep <- nrow(in_interval[in_interval$booking_status==1, ])/nrow(in_interval)
+  calibration_data[calibration_data$bin_midpoint==i, "observed_event_percentage"] <- oep
+  
+}
+
+ggplot(data = calibration_data, aes(x = bin_midpoint, y = observed_event_percentage)) +
+  geom_line(size = 1) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  geom_point(size = 2) +
+  geom_text(aes(label = bin_midpoint), hjust = 0.75, vjust = -0.5)
+
+
+############################ Smaller capacity model ############################
+
+# Evaluate a model with smaller capacity that does not over fit before generalization
+
+model_small <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu"),
+  layer_dense(units = 37, activation = "relu"),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model_small,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history_small <- fit(model_small, training_features, training_labels,
+                     epochs = 200, batch_size = 512, validation_split = 0.33)
+plot(history_small)
+
+# Generalize the model
+
+model <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.2),
+  layer_dense(units = 37, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.2),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history <- fit(model, training_features, training_labels,
+               epochs = 50, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history)
+
+# Evaluate the smaller capacity model
+
+predictions <- predict(model, test_features)
+test_set$p_prob2 <- predictions[, 1]
+
+# ROC curve
+
+roc_data <- data.frame(threshold=seq(1,0,-0.01), fpr=0, tpr=0)
+for (i in roc_data$threshold) {
+  
+  over_threshold <- test_set[test_set$p_prob2 >= i, ]
+  
+  fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
+  roc_data[roc_data$threshold==i, "fpr"] <-  fpr
+  
+  tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
+  roc_data[roc_data$threshold==i, "tpr"] <- tpr
+  
+}
+
+ggplot() +
+  geom_line(data = roc_data, aes(x=fpr, y=tpr, color = threshold), size = 2) +
+  scale_color_gradientn(colors = rainbow(3)) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  geom_point(data = roc_data[seq(1, 101, 10), ], aes(x = fpr, y =tpr)) +
+  geom_text(data = roc_data[seq(1, 101, 10), ],
+            aes(x = fpr, y = tpr, label = threshold, hjust = 1.2, vjust = -0.2))
+
+
+# AUC
+
+auc <- auc(x = roc_data$fpr, y = roc_data$tpr, type = "spline")
+auc
+
+# Calibration curve
+
+calibration_data <- data.frame(bin_midpoint=seq(0.05, 0.95, 0.1),
+                               observed_event_percentage=0)
+for (i in seq(0.05,0.95,0.1)) {
+  
+  in_interval <- test_set[test_set$p_prob2 >= (i-0.05) & test_set$p_prob2 <= (i+0.05), ]
   oep <- nrow(in_interval[in_interval$booking_status==1, ])/nrow(in_interval)
   calibration_data[calibration_data$bin_midpoint==i, "observed_event_percentage"] <- oep
   

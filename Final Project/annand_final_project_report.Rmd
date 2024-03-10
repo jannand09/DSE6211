@@ -2,7 +2,9 @@
 title: "DSE6211 Final Project"
 author: "Joseph Annand"
 date: "2024-03-09"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -17,6 +19,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(lubridate)
 library(caret)
+library(MESS)
 ```
 
 
@@ -302,6 +305,7 @@ use_virtualenv("my_tf_workspace")
 ```{r overfit model}
 model <- keras_model_sequential(list(
   layer_dense(units = 100, activation = "relu"),
+  layer_dense(units = 100, activation = "relu"),
   layer_dense(units = 50, activation = "relu"),
   layer_dense(units = 1, activation = "sigmoid")
 ))
@@ -317,11 +321,27 @@ plot(history)
 ```
 
 
+```{r metrics first}
+for (x in 1:4) {
+  if (x %% 2 == 0) {
+    print(max(unlist(history$metrics[x])))
+  } else {
+    print(min(unlist(history$metrics[x])))
+  }
+}
+```
+
+
+
 ### First generalized model
 
 
 ```{r first model}
 model <- keras_model_sequential(list(
+  layer_dense(units = 100, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
   layer_dense(units = 100, activation = "relu",
               kernel_regularizer = regularizer_l2(0.002)),
   layer_batch_normalization(),
@@ -342,6 +362,17 @@ history <- fit(model, training_features, training_labels,
                epochs = 50, batch_size = 512, validation_split = 0.33,
                callbacks = list(callback_early_stopping(patience = 2)))
 plot(history)
+```
+
+
+```{r metrics generalized first}
+for (x in 1:4) {
+  if (x %% 2 == 0) {
+    print(max(unlist(history$metrics[x])))
+  } else {
+    print(min(unlist(history$metrics[x])))
+  }
+}
 ```
 
 
@@ -406,5 +437,290 @@ ggplot(data = calibration_data, aes(x = bin_midpoint, y = observed_event_percent
   geom_abline(intercept = 0, slope = 1, lty = 2) +
   geom_point(size = 2) +
   geom_text(aes(label = bin_midpoint), hjust = 0.75, vjust = -0.5)
+```
+
+
+### Model that Fails to Overfit
+
+
+```{r smaller model}
+model_small <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu"),
+  layer_dense(units = 37, activation = "relu"),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model_small,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history_small <- fit(model_small, training_features, training_labels,
+               epochs = 200, batch_size = 512, validation_split = 0.33)
+plot(history_small)
+```
+
+
+```{r metrics small}
+for (x in 1:4) {
+  if (x %% 2 == 0) {
+    print(max(unlist(history_small$metrics[x])))
+  } else {
+    print(min(unlist(history_small$metrics[x])))
+  }
+}
+```
+
+
+
+### Generalize smaller model
+
+
+```{r generalize small}
+model_small <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.2),
+  layer_dense(units = 37, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.2),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model_small,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history_small <- fit(model_small, training_features, training_labels,
+               epochs = 50, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history_small)
+
+```
+
+
+
+```{r metrics generalized small}
+for (x in 1:4) {
+  if (x %% 2 == 0) {
+    print(max(unlist(history_small$metrics[x])))
+  } else {
+    print(min(unlist(history_small$metrics[x])))
+  }
+}
+```
+
+
+
+### Evaluate smaller model
+
+
+```{r evaluate small}
+# Evaluate the smaller capacity model
+
+predictions <- predict(model_small, test_features)
+test_set$p_prob2 <- predictions[, 1]
+
+# ROC curve
+
+roc_data <- data.frame(threshold=seq(1,0,-0.01), fpr=0, tpr=0)
+for (i in roc_data$threshold) {
+  
+  over_threshold <- test_set[test_set$p_prob2 >= i, ]
+  
+  fpr <- sum(over_threshold$booking_status==0)/sum(test_set$booking_status==0)
+  roc_data[roc_data$threshold==i, "fpr"] <-  fpr
+  
+  tpr <- sum(over_threshold$booking_status==1)/sum(test_set$booking_status==1)
+  roc_data[roc_data$threshold==i, "tpr"] <- tpr
+  
+}
+
+ggplot() +
+  geom_line(data = roc_data, aes(x=fpr, y=tpr, color = threshold), size = 2) +
+  scale_color_gradientn(colors = rainbow(3)) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  geom_point(data = roc_data[seq(1, 101, 10), ], aes(x = fpr, y =tpr)) +
+  geom_text(data = roc_data[seq(1, 101, 10), ],
+            aes(x = fpr, y = tpr, label = threshold, hjust = 1.2, vjust = -0.2))
+
+
+# AUC
+
+auc <- auc(x = roc_data$fpr, y = roc_data$tpr, type = "spline")
+auc
+
+# Calibration curve
+
+calibration_data <- data.frame(bin_midpoint=seq(0.05, 0.95, 0.1),
+                               observed_event_percentage=0)
+for (i in seq(0.05,0.95,0.1)) {
+  
+  in_interval <- test_set[test_set$p_prob2 >= (i-0.05) & test_set$p_prob2 <= (i+0.05), ]
+  oep <- nrow(in_interval[in_interval$booking_status==1, ])/nrow(in_interval)
+  calibration_data[calibration_data$bin_midpoint==i, "observed_event_percentage"] <- oep
+  
+}
+
+ggplot(data = calibration_data, aes(x = bin_midpoint, y = observed_event_percentage)) +
+  geom_line(size = 1) +
+  geom_abline(intercept = 0, slope = 1, lty = 2) +
+  geom_point(size = 2) +
+  geom_text(aes(label = bin_midpoint), hjust = 0.75, vjust = -0.5)
+```
+
+
+## Appendix
+
+### Add early stop and batch normalization model
+
+
+```{r}
+model <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu"),
+  layer_batch_normalization(),
+  layer_dense(units = 37, activation = "relu"),
+  layer_batch_normalization(),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history <- fit(model, training_features, training_labels,
+               epochs = 25, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history)
+```
+
+
+```{r}
+for (x in 1:4) {
+  if (x %% 2 == 0) {
+    print(max(unlist(history$metrics[x])))
+  } else {
+    print(min(unlist(history$metrics[x])))
+  }
+}
+```
+
+
+### Add L2 regularization
+
+
+```{r}
+model <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dense(units = 37, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history <- fit(model, training_features, training_labels,
+               epochs = 25, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history)
+```
+
+
+```{r}
+for (x in 1:4) {
+  if (x %% 2 == 0) {
+    print(max(unlist(history$metrics[x])))
+  } else {
+    print(min(unlist(history$metrics[x])))
+  }
+}
+```
+
+
+
+### Add Dropout
+
+
+```{r}
+model <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
+  layer_dense(units = 37, activation = "relu",
+              kernel_regularizer = regularizer_l2(0.002)),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history <- fit(model, training_features, training_labels,
+               epochs = 25, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history)
+```
+
+
+```{r}
+for (x in 1:4) {
+  if (x %% 2 == 0) {
+    print(max(unlist(history$metrics[x])))
+  } else {
+    print(min(unlist(history$metrics[x])))
+  }
+}
+```
+
+
+
+# Remove regularization
+
+
+```{r}
+model <- keras_model_sequential(list(
+  layer_dense(units = 75, activation = "relu"),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
+  layer_dense(units = 37, activation = "relu"),
+  layer_batch_normalization(),
+  layer_dropout(rate=0.5),
+  layer_dense(units = 1, activation = "sigmoid")
+))
+
+compile(model,
+        optimizer = "rmsprop",
+        loss = "binary_crossentropy",
+        metrics = "accuracy")
+
+history <- fit(model, training_features, training_labels,
+               epochs = 25, batch_size = 512, validation_split = 0.33,
+               callbacks = list(callback_early_stopping(patience = 2)))
+plot(history)
+```
+
+
+```{r}
+for (x in 1:4) {
+  if (x %% 2 == 0) {
+    print(max(unlist(history$metrics[x])))
+  } else {
+    print(min(unlist(history$metrics[x])))
+  }
+}
 ```
 
